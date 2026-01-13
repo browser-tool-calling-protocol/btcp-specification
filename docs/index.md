@@ -45,29 +45,46 @@ BTCP supports multiple execution environments:
 ## How It Works
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Browser                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐  │
-│  │  Web App    │    │ BTCP Client │    │  Tool Sandbox   │  │
-│  │             │◄──►│             │◄──►│                 │  │
-│  │  (DOM,      │    │  (Schema    │    │  (Isolated      │  │
-│  │   State)    │    │   Registry) │    │   Execution)    │  │
-│  └─────────────┘    └──────┬──────┘    └─────────────────┘  │
-│                            │                                 │
-└────────────────────────────┼─────────────────────────────────┘
-                             │
+┌────────────────────────────────────────────────────────────────────────────┐
+│                                Browser                                      │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐                 │
+│  │  Web App    │    │ BTCP Client │    │  Tool Sandbox   │                 │
+│  │             │◄──►│             │◄──►│                 │                 │
+│  │  (DOM,      │    │  (Schema    │    │  (Isolated      │                 │
+│  │   State)    │    │   Registry) │    │   Execution)    │                 │
+│  └─────────────┘    └──────┬──────┘    └─────────────────┘                 │
+│                            │                                                │
+└────────────────────────────┼────────────────────────────────────────────────┘
+                             │ BTCP
+                             │ (WebSocket)
+                    ┌────────▼────────┐
+                    │   BTCP Server   │
+                    │                 │
+                    │  (Transport     │
+                    │   Relay Only)   │
+                    └────────┬────────┘
+                             │ MCP
+                             │ (Stdio/WebSocket/SSE)
                     ┌────────▼────────┐
                     │    AI Agent     │
                     │                 │
-                    │  (Cloud/Local)  │
+                    │ (Claude, GPT,   │
+                    │  Custom Agent)  │
                     └─────────────────┘
 ```
 
-1. **Tool Providers** expose tools via BTCP-compliant schemas
-2. **BTCP Client** maintains a registry of available tools and their capabilities
-3. **AI Agent** discovers tools and sends execution requests
-4. **Tool Sandbox** executes tools in an isolated environment with declared permissions
-5. **Results** are returned directly to the agent
+1. **Browser Client** registers tools and executes them in sandboxed environments
+2. **BTCP Server** acts as a transport relay between browser and agents (MCP-compatible)
+3. **AI Agent** connects via standard MCP protocol to discover and call tools
+4. **Tool execution** happens entirely in the browser—server only routes messages
+5. **Results** flow back through the server to the requesting agent
+
+### Architecture Highlights
+
+- **Server is a pure relay**: No tool execution, no data processing—just message routing
+- **MCP-compatible**: AI agents connect using standard MCP protocol
+- **Session-based**: Browser creates session, agents join with session ID
+- **Tools execute client-side**: All tool logic runs in browser sandboxes
 
 ## Complementary to MCP
 
@@ -87,6 +104,7 @@ Use MCP for server operations (databases, file systems, external APIs) and BTCP 
 - **[Introduction](./introduction.md)**: Deep dive into BTCP concepts
 - **[For Tool Providers](./for-tool-providers.md)**: Create BTCP-compliant tools
 - **[For Tool Callers](./for-tool-callers.md)**: Integrate BTCP into your AI agent
+- **[BTCP Server](./server/index.md)**: Set up the MCP-compatible relay server
 - **[Security Model](./security.md)**: Understand BTCP's security architecture
 - **[API Reference](./api/core/manifest.md)**: Complete schema specifications
 

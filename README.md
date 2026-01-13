@@ -20,31 +20,42 @@ BTCP is a protocol that lets AI agents call browser tools securely. Unlike serve
 | [Overview](./docs/index.md) | Introduction to BTCP |
 | [For Tool Providers](./docs/for-tool-providers.md) | Create BTCP-compliant tools |
 | [For Tool Callers](./docs/for-tool-callers.md) | Integrate BTCP into AI agents |
+| [BTCP Server](./docs/server/index.md) | MCP-compatible relay server |
 | [Security Model](./docs/security.md) | Capability system and sandboxing |
 | [API Reference](./docs/api/core/manifest.md) | Schema specifications |
 
 ## How It Works
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Browser                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐  │
-│  │  Web App    │    │ BTCP Client │    │  Tool Sandbox   │  │
-│  │             │◄──►│             │◄──►│                 │  │
-│  │  (DOM,      │    │  (Schema    │    │  (Isolated      │  │
-│  │   State)    │    │   Registry) │    │   Execution)    │  │
-│  └─────────────┘    └──────┬──────┘    └─────────────────┘  │
-└────────────────────────────┼─────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                              Browser                                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐          │
+│  │  Web App    │    │ BTCP Client │    │  Tool Sandbox   │          │
+│  │             │◄──►│             │◄──►│                 │          │
+│  │  (DOM,      │    │  (Schema    │    │  (Isolated      │          │
+│  │   State)    │    │   Registry) │    │   Execution)    │          │
+│  └─────────────┘    └──────┬──────┘    └─────────────────┘          │
+│                            │                                         │
+└────────────────────────────┼─────────────────────────────────────────┘
+                             │ BTCP (WebSocket)
+                             │
+                    ┌────────▼────────┐
+                    │   BTCP Server   │  ◄── Transport relay only
+                    │  (MCP-compatible)│      No tool execution
+                    └────────┬────────┘
+                             │ MCP (Stdio/WebSocket/SSE)
                              │
                     ┌────────▼────────┐
                     │    AI Agent     │
+                    │  (Claude, GPT,  │
+                    │  Custom Agent)  │
                     └─────────────────┘
 ```
 
-1. **Tool Providers** expose tools via BTCP manifests
-2. **BTCP Client** manages tool registry and permissions
-3. **AI Agent** discovers and calls tools via JSON-RPC
-4. **Sandbox** executes tools with capability restrictions
+1. **Browser Client** registers tools and executes them in sandboxes
+2. **BTCP Server** relays messages between browser and agents (MCP-compatible)
+3. **AI Agent** connects via standard MCP protocol
+4. **Tools execute in browser** — server only routes messages
 
 ## Example
 
@@ -72,23 +83,35 @@ BTCP is a protocol that lets AI agents call browser tools securely. Unlike serve
 }
 ```
 
-### Calling from an AI Agent
+### Browser Client
 
 ```javascript
-import { BTCPAgent } from '@btcp/agent-sdk';
+// In browser
+import { BTCPClient } from '@btcp/client';
 
-const agent = new BTCPAgent({ transport: 'websocket' });
-await agent.connect();
+const client = new BTCPClient({ serverUrl: 'ws://localhost:8765' });
+const session = await client.connect();
 
-// Request capability
-await agent.requestCapabilities(['dom:read']);
+console.log('Session ID:', session.id);  // Share with AI agent
 
-// Call tool
-const result = await agent.callTool('getPageContent', {
+// Register tools
+await client.registerManifest(myManifest, implementations);
+```
+
+### AI Agent (via MCP)
+
+```javascript
+// Any MCP-compatible agent
+import { Client } from '@modelcontextprotocol/sdk/client';
+
+const client = new Client({ name: 'my-agent', version: '1.0.0' });
+await client.connect(transport);  // Connect to BTCP server
+
+// Tools from browser are available via standard MCP
+const tools = await client.listTools();
+const result = await client.callTool('getPageContent', {
   selector: 'article'
 });
-
-console.log(result.content);
 ```
 
 ## Documentation Structure
@@ -101,6 +124,11 @@ docs/
 ├── for-tool-callers.md         # Caller guide
 ├── security.md                 # Security model
 ├── implementation.md           # Best practices
+├── server/
+│   ├── index.md                # Server overview
+│   ├── mcp-bridge.md           # MCP protocol translation
+│   ├── sessions.md             # Session management
+│   └── implementation.md       # Server implementation guide
 ├── api/
 │   └── core/
 │       ├── manifest.md         # Manifest schema
@@ -162,8 +190,8 @@ We welcome contributions! Please see our contributing guidelines:
 
 ## Related Projects
 
+- [BTCP Server](https://github.com/browser-tool-calling-protocol/btcp-server) - MCP-compatible relay server
 - [BTCP Client SDK](https://github.com/browser-tool-calling-protocol/btcp-client) - Browser client implementation
-- [BTCP Agent SDK](https://github.com/browser-tool-calling-protocol/btcp-agent) - AI agent integration library
 - [BTCP Chrome Extension](https://github.com/browser-tool-calling-protocol/btcp-extension) - Browser extension
 
 ## License
