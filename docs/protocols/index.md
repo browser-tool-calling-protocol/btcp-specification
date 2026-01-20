@@ -19,6 +19,29 @@ BTCP tools run within sandboxed environments that enforce capability restriction
 
 BTCP supports multiple transport mechanisms for communication between AI agents and the browser.
 
+### Socket Native
+
+Unix domain sockets (Linux/macOS) or named pipes (Windows) for same-machine IPC.
+
+```
+Agent ◄──── Unix Socket ────► BTCP Server (Same Machine)
+            /Named Pipe
+```
+
+**Use Cases:**
+- Same-machine inter-process communication
+- Local development with lowest latency
+- Desktop AI agent applications
+- Performance-critical tool execution
+
+**Advantages:**
+- Ultra-low latency (~10μs vs ~100μs for TCP)
+- No port management or conflicts
+- File-system based security permissions
+- Bypasses TCP/IP network stack entirely
+
+[Socket Native Protocol Details](./socket-native.md)
+
 ### WebSocket
 
 Direct WebSocket connection for real-time bidirectional communication.
@@ -163,14 +186,17 @@ BTCP-specific error codes:
 
 | Requirement | Recommended |
 |-------------|-------------|
-| Lowest latency | WebSocket |
+| Lowest latency (same machine) | Socket Native |
+| Lowest latency (network) | WebSocket |
 | Maximum security | SES + Extension Bridge |
 | Remote access | Cloud Relay |
 | Browser compatibility | Web Worker + WebSocket |
 | Heavy computation | WebAssembly |
+| Local IPC | Socket Native |
 
 ### Configuration Example
 
+**WebSocket Transport:**
 ```json
 {
   "btcp": "1.0",
@@ -183,11 +209,28 @@ BTCP-specific error codes:
 }
 ```
 
+**Socket Native Transport (same machine):**
+```json
+{
+  "btcp": "1.0",
+  "name": "my-tools",
+  "config": {
+    "sandbox": "worker",
+    "transport": "socket-native",
+    "socket": {
+      "path": "/tmp/btcp.sock"
+    },
+    "timeout": 30000
+  }
+}
+```
+
 ## Related
 
 - [Web Worker Protocol](./worker.md)
 - [iframe Protocol](./iframe.md)
 - [SES Protocol](./ses.md)
 - [WebAssembly Protocol](./wasm.md)
+- [Socket Native Transport](./socket-native.md)
 - [WebSocket Transport](./websocket.md)
 - [Security Model](../security.md)
